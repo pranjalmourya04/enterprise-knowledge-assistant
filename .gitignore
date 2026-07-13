@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# Env vars / secrets
+.env
+*.env.local
+
+# Data (uploaded PDFs and vector store shouldn't be committed)
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
+backend/data/chroma/*
+!backend/data/chroma/.gitkeep
+
+# OS
+.DS_Store
+
+# Frontend (added in Week 3)
+node_modules/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
