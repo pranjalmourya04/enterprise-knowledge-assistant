@@ -20,3 +20,20 @@ class UploadResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
+
+class QueryRequest(BaseModel):
+    question: str
+    top_k: int = 5
+
+
+class RetrievedChunk(BaseModel):
+    chunk_id: str
+    text: str
+    filename: str
+    page_number: int
+    similarity_score: float
+
+
+class QueryResponse(BaseModel):
+    question: str
+    retrieved_chunks: List[RetrievedChunk]

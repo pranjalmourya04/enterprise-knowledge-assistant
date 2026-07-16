@@ -19,6 +19,11 @@ EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 # --- ChromaDB (Week 1) ---
 CHROMA_COLLECTION_NAME = "knowledge_assistant_docs"
 
+CHROMA_SIMILARITY_SPACE = "cosine"
+
+# --- Retrieval (Day 5) ---
+DEFAULT_TOP_K = 5
+
 # --- Upload constraints ---
 ALLOWED_EXTENSIONS = {".pdf"}
 MAX_UPLOAD_SIZE_MB = 20
