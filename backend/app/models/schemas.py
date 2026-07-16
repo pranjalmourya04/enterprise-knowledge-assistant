@@ -13,6 +13,8 @@ class UploadResponse(BaseModel):
     filename: str
     pages_extracted: int
     chunks_created: int
+    chunks_stored_in_vector_db: int
+    total_chunks_in_collection: int
     sample_chunks: List[ChunkPreview]
 
 

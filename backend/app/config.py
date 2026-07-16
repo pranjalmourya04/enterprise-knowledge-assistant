@@ -1,8 +1,3 @@
-"""
-Central configuration for the Knowledge Assistant backend.
-Keeping this in one place means we're not hardcoding paths/constants
-across services as the project grows week over week.
-"""
 from pathlib import Path
 
 # --- Paths ---

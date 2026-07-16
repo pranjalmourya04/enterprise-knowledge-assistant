@@ -2,14 +2,14 @@
 Day 1-2: PDF upload endpoint.
 
 Flow: receive PDF -> save to disk -> extract text -> chunk it.
-(Embedding + storing in ChromaDB is added Day 3-4 — for now we just
-prove extraction + chunking works end-to-end and return a preview.)
+(Embedding + storing in ChromaDB added Day 3-4.)
 """
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from pathlib import Path
 
 from app.config import UPLOADS_DIR, ALLOWED_EXTENSIONS, MAX_UPLOAD_SIZE_MB
 from app.services.document_processor import chunk_document
+from app.services.vector_store import add_chunks, get_collection_count
 from app.models.schemas import UploadResponse, ChunkPreview
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -54,10 +54,18 @@ async def upload_document(file: UploadFile = File(...)):
 
     pages_extracted = len({c.page_number for c in chunks})
 
+    # --- Embed + store in ChromaDB ---
+    try:
+        stored_count = add_chunks(chunks)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to embed/store chunks: {e}")
+
     return UploadResponse(
         filename=file.filename,
         pages_extracted=pages_extracted,
         chunks_created=len(chunks),
+        chunks_stored_in_vector_db=stored_count,
+        total_chunks_in_collection=get_collection_count(),
         sample_chunks=[
             ChunkPreview(
                 chunk_id=c.chunk_id,
