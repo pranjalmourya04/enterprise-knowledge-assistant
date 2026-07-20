@@ -60,3 +60,7 @@ def query_similar_chunks(question_embedding: List[float], top_k: int) -> dict:
         query_embeddings=[question_embedding],
         n_results=top_k,
     )
+
+def get_all_chunks() -> dict:
+    
+    return _collection.get(include=["documents", "metadatas"])

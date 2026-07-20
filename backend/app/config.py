@@ -23,6 +23,8 @@ CHROMA_SIMILARITY_SPACE = "cosine"
 
 DEFAULT_TOP_K = 5
 
+CANDIDATE_POOL_SIZE = 20  # hybrid search returns this many candidates for re-ranking
+
 ALLOWED_EXTENSIONS = {".pdf"}
 MAX_UPLOAD_SIZE_MB = 20
 
