@@ -37,3 +37,19 @@ class RetrievedChunk(BaseModel):
 class QueryResponse(BaseModel):
     question: str
     retrieved_chunks: List[RetrievedChunk]
+
+class AskRequest(BaseModel):
+    question: str
+    top_k: int = 5
+
+
+class SourceUsed(BaseModel):
+    filename: str
+    page_number: int
+    similarity_score: float
+
+
+class AskResponse(BaseModel):
+    question: str
+    answer: str
+    sources: List[SourceUsed]
