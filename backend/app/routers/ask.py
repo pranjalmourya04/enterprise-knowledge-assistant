@@ -6,6 +6,7 @@ from app.config import CANDIDATE_POOL_SIZE, FINAL_TOP_K
 from app.services.embedding_service import embed_texts
 from app.services.llm_service import generate_answer
 from app.models.schemas import AskRequest, AskResponse, SourceUsed
+from app.services.auth import get_role, get_allowed_sensitivities
 
 router = APIRouter(prefix="/ask", tags=["ask"])
 
@@ -15,18 +16,34 @@ async def ask_question(request: AskRequest):
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
 
+    # Day 17-18: resolve the user's role and RBAC clearance BEFORE retrieval runs
+    try:
+        role = get_role(request.username)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
 
+    allowed_sensitivities = get_allowed_sensitivities(role)
+
+    # Day 12: rewrite the question into a cleaner search query before retrieval
     retrieval_query = rewrite_query(request.question)
 
     question_embedding = embed_texts([retrieval_query])[0]
 
-    hybrid_result = hybrid_retrieve(retrieval_query, question_embedding, CANDIDATE_POOL_SIZE)
+    # Day 8-9: hybrid search narrows the collection to a candidate pool -
+    # RBAC-filtered, so out-of-clearance chunks never enter the pool
+    hybrid_result = hybrid_retrieve(
+        retrieval_query, question_embedding, CANDIDATE_POOL_SIZE,
+        allowed_sensitivities=allowed_sensitivities,
+    )
     ranked_ids = hybrid_result["ranked_ids"]
     chunk_lookup = hybrid_result["chunk_lookup"]
 
     if not ranked_ids:
-        raise HTTPException(status_code=404, detail="No documents found. Upload a document first.")
-
+        raise HTTPException(
+            status_code=404,
+            detail="No documents found that you have access to. Either no documents "
+                   "exist yet, or none are within your role's clearance level.",
+        )
     candidates = [
         {
             "chunk_id": chunk_id,
@@ -56,6 +73,8 @@ async def ask_question(request: AskRequest):
 
     return AskResponse(
         question=request.question,
+        username=request.username,
+        role=role,
         rewritten_query=retrieval_query,
         answer=answer,
         sources=sources,

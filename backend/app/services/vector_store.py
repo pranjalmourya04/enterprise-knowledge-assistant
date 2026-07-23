@@ -34,10 +34,11 @@ def add_chunks(chunks: List[Chunk]) -> int:
             "filename": c.filename,
             "page_number": c.page_number,
             "chunk_index_on_page": c.chunk_index_on_page,
+            "department": c.department,
+            "sensitivity": c.sensitivity,
         }
         for c in chunks
     ]
-
     _collection.add(
         ids=ids,
         embeddings=embeddings,
@@ -51,16 +52,29 @@ def get_collection_count() -> int:
     """Total number of chunks currently stored - useful for sanity checks."""
     return _collection.count()
 
-def query_similar_chunks(question_embedding: List[float], top_k: int) -> dict:
-    """
-    Query ChromaDB for the top-k chunks most similar to a question embedding.
-    Returns raw ChromaDB result dict (ids, documents, metadatas, distances).
-    """
+def query_similar_chunks(question_embedding: List[float], top_k: int,
+                          allowed_sensitivities: List[str] = None) -> dict:
+    
+    where_filter = {"sensitivity": {"$in": allowed_sensitivities}} if allowed_sensitivities else None
     return _collection.query(
         query_embeddings=[question_embedding],
         n_results=top_k,
+        where=where_filter,
     )
 
-def get_all_chunks() -> dict:
-    
-    return _collection.get(include=["documents", "metadatas"])
+def get_all_chunks(allowed_sensitivities: List[str] = None) -> dict:
+    """
+    Fetch every chunk currently stored (ids, documents, metadatas),
+    optionally RBAC-filtered the same way as query_similar_chunks.
+    Used to build the BM25 keyword index for hybrid search (Week 2) -
+    filtering here too ensures BM25 can never surface a chunk the user
+    isn't cleared to see, matching the vector search path.
+
+    Design note: BM25 index is rebuilt from this fresh on every query
+    rather than persisted separately. Fine for a project-scale document
+    set; at production scale you'd maintain a persisted, incrementally
+    updated keyword index (e.g. Elasticsearch/Whoosh) instead of rebuilding
+    it per request.
+    """
+    where_filter = {"sensitivity": {"$in": allowed_sensitivities}} if allowed_sensitivities else None
+    return _collection.get(include=["documents", "metadatas"], where=where_filter)

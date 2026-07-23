@@ -1,16 +1,3 @@
-"""
-Day 1-2: Document processing.
-
-Responsibilities:
-1. Extract text from a PDF, page by page (pdfplumber).
-2. Split extracted text into overlapping chunks suitable for embedding.
-
-Design decision: chunks are built PER PAGE (not across page boundaries).
-This keeps citation metadata (page number) exact and unambiguous for every
-chunk. Trade-off: a paragraph that spans a page break may end up split
-across two chunks. Acceptable for this project; worth mentioning if asked
-about chunking strategy in an interview.
-"""
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
@@ -28,8 +15,9 @@ class Chunk:
     filename: str
     page_number: int
     chunk_index_on_page: int
+    department: str = "general"
+    sensitivity: str = "internal"
     metadata: dict = field(default_factory=dict)
-
 
 def extract_pages(pdf_path: Path) -> List[dict]:
     """
@@ -53,11 +41,7 @@ def extract_pages(pdf_path: Path) -> List[dict]:
 
 
 def _split_text_into_windows(text: str, chunk_size: int, overlap: int) -> List[str]:
-    """
-    Word-count-based chunking (used as a practical proxy for token count;
-    for English prose, word count and token count track closely enough
-    for this project's purposes).
-    """
+    
     words = text.split()
     if not words:
         return []
@@ -77,7 +61,8 @@ def _split_text_into_windows(text: str, chunk_size: int, overlap: int) -> List[s
     return windows
 
 
-def chunk_document(pdf_path: Path) -> List[Chunk]:
+def chunk_document(pdf_path: Path, department: str = "general",
+                    sensitivity: str = "internal") -> List[Chunk]:
     """
     Full pipeline: extract pages, then chunk each page's text with overlap.
     Returns a flat list of Chunk objects ready for embedding.
@@ -97,6 +82,8 @@ def chunk_document(pdf_path: Path) -> List[Chunk]:
                     filename=pdf_path.name,
                     page_number=page["page_number"],
                     chunk_index_on_page=idx,
+                    department=department,
+                    sensitivity=sensitivity,
                 )
             )
 

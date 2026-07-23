@@ -1,13 +1,9 @@
-"""
-Day 1-2: PDF upload endpoint.
-
-Flow: receive PDF -> save to disk -> extract text -> chunk it.
-(Embedding + storing in ChromaDB added Day 3-4.)
-"""
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from pathlib import Path
-
-from app.config import UPLOADS_DIR, ALLOWED_EXTENSIONS, MAX_UPLOAD_SIZE_MB
+from app.config import (
+    UPLOADS_DIR, ALLOWED_EXTENSIONS, MAX_UPLOAD_SIZE_MB,
+    SENSITIVITY_LEVELS, DEFAULT_SENSITIVITY, DEFAULT_DEPARTMENT,
+)
 from app.services.document_processor import chunk_document
 from app.services.vector_store import add_chunks, get_collection_count
 from app.models.schemas import UploadResponse, ChunkPreview
@@ -16,7 +12,17 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 
 @router.post("/upload", response_model=UploadResponse)
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(
+    file: UploadFile = File(...),
+    department: str = Form(DEFAULT_DEPARTMENT),
+    sensitivity: str = Form(DEFAULT_SENSITIVITY),
+):
+    if sensitivity not in SENSITIVITY_LEVELS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid sensitivity '{sensitivity}'. Must be one of: "
+                   f"{list(SENSITIVITY_LEVELS.keys())}",
+        )
     # --- Validate extension ---
     suffix = Path(file.filename).suffix.lower()
     if suffix not in ALLOWED_EXTENSIONS:
@@ -41,7 +47,7 @@ async def upload_document(file: UploadFile = File(...)):
 
     # --- Extract + chunk ---
     try:
-        chunks = chunk_document(save_path)
+        chunks = chunk_document(save_path, department=department, sensitivity=sensitivity)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process PDF: {e}")
 

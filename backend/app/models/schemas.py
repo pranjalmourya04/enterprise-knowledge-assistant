@@ -40,8 +40,8 @@ class QueryResponse(BaseModel):
 
 class AskRequest(BaseModel):
     question: str
+    username: str
     top_k: int = 5
-
 
 class SourceUsed(BaseModel):
     filename: str
@@ -50,6 +50,8 @@ class SourceUsed(BaseModel):
 
 class AskResponse(BaseModel):
     question: str
-    rewritten_query: str  
+    username: str
+    role: str
+    rewritten_query: str  # what was actually used for retrieval - useful for debugging/demo
     answer: str
     sources: List[SourceUsed]
