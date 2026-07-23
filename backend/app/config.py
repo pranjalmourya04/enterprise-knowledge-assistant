@@ -25,6 +25,9 @@ DEFAULT_TOP_K = 5
 
 CANDIDATE_POOL_SIZE = 20  # hybrid search returns this many candidates for re-ranking
 
+RERANKER_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+FINAL_TOP_K = 5  # after re-ranking, this many chunks go to the LLM
+
 ALLOWED_EXTENSIONS = {".pdf"}
 MAX_UPLOAD_SIZE_MB = 20
 

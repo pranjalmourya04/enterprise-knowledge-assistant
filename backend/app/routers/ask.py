@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException
 
-from app.config import DEFAULT_TOP_K
+from app.config import CANDIDATE_POOL_SIZE, FINAL_TOP_K
 from app.services.embedding_service import embed_texts
-from app.services.vector_store import query_similar_chunks
+from app.services.hybrid_search import hybrid_retrieve
+from app.services.reranker import rerank
 from app.services.llm_service import generate_answer
 from app.models.schemas import AskRequest, AskResponse, SourceUsed
 
@@ -14,30 +15,38 @@ async def ask_question(request: AskRequest):
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
 
-    top_k = request.top_k if request.top_k > 0 else DEFAULT_TOP_K
-
     question_embedding = embed_texts([request.question])[0]
-    results = query_similar_chunks(question_embedding, top_k)
 
-    if not results["ids"] or not results["ids"][0]:
-        raise HTTPException(
-            status_code=404,
-            detail="No documents found. Upload a document first.",
-        )
+    # Day 8-9: hybrid search narrows the full collection to a candidate pool
+    hybrid_result = hybrid_retrieve(request.question, question_embedding, CANDIDATE_POOL_SIZE)
+    ranked_ids = hybrid_result["ranked_ids"]
+    chunk_lookup = hybrid_result["chunk_lookup"]
 
-    chunk_texts = results["documents"][0]
-    sources = []
-    for i in range(len(results["ids"][0])):
-        distance = results["distances"][0][i]
-        similarity = round(1 - distance, 4)
-        metadata = results["metadatas"][0][i]
-        sources.append(
-            SourceUsed(
-                filename=metadata["filename"],
-                page_number=metadata["page_number"],
-                similarity_score=similarity,
-            )
+    if not ranked_ids:
+        raise HTTPException(status_code=404, detail="No documents found. Upload a document first.")
+
+    candidates = [
+        {
+            "chunk_id": chunk_id,
+            "text": chunk_lookup[chunk_id]["text"],
+            "metadata": chunk_lookup[chunk_id]["metadata"],
+        }
+        for chunk_id in ranked_ids
+    ]
+
+    # Day 10-11: cross-encoder re-ranks the candidate pool precisely
+    reranked = rerank(request.question, candidates)
+    top_chunks = reranked[:FINAL_TOP_K]
+
+    chunk_texts = [c["text"] for c in top_chunks]
+    sources = [
+        SourceUsed(
+            filename=c["metadata"]["filename"],
+            page_number=c["metadata"]["page_number"],
+            relevance_score=round(c["rerank_score"], 4),
         )
+        for c in top_chunks
+    ]
 
     try:
         answer = generate_answer(request.question, chunk_texts)

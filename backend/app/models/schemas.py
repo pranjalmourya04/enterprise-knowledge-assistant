@@ -46,8 +46,7 @@ class AskRequest(BaseModel):
 class SourceUsed(BaseModel):
     filename: str
     page_number: int
-    similarity_score: float
-
+    relevance_score: float  # cross-encoder score - relative ranking, not 0-1 bounded
 
 class AskResponse(BaseModel):
     question: str
