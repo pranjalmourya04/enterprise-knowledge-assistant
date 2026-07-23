@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException
-
-from app.config import CANDIDATE_POOL_SIZE, FINAL_TOP_K
-from app.services.embedding_service import embed_texts
 from app.services.hybrid_search import hybrid_retrieve
 from app.services.reranker import rerank
+from app.services.query_rewriter import rewrite_query
+from app.config import CANDIDATE_POOL_SIZE, FINAL_TOP_K
+from app.services.embedding_service import embed_texts
 from app.services.llm_service import generate_answer
 from app.models.schemas import AskRequest, AskResponse, SourceUsed
 
@@ -15,10 +15,12 @@ async def ask_question(request: AskRequest):
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
 
-    question_embedding = embed_texts([request.question])[0]
 
-    # Day 8-9: hybrid search narrows the full collection to a candidate pool
-    hybrid_result = hybrid_retrieve(request.question, question_embedding, CANDIDATE_POOL_SIZE)
+    retrieval_query = rewrite_query(request.question)
+
+    question_embedding = embed_texts([retrieval_query])[0]
+
+    hybrid_result = hybrid_retrieve(retrieval_query, question_embedding, CANDIDATE_POOL_SIZE)
     ranked_ids = hybrid_result["ranked_ids"]
     chunk_lookup = hybrid_result["chunk_lookup"]
 
@@ -34,8 +36,7 @@ async def ask_question(request: AskRequest):
         for chunk_id in ranked_ids
     ]
 
-    # Day 10-11: cross-encoder re-ranks the candidate pool precisely
-    reranked = rerank(request.question, candidates)
+    reranked = rerank(retrieval_query, candidates)
     top_chunks = reranked[:FINAL_TOP_K]
 
     chunk_texts = [c["text"] for c in top_chunks]
@@ -53,4 +54,9 @@ async def ask_question(request: AskRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM generation failed: {e}")
 
-    return AskResponse(question=request.question, answer=answer, sources=sources)
+    return AskResponse(
+        question=request.question,
+        rewritten_query=retrieval_query,
+        answer=answer,
+        sources=sources,
+    )

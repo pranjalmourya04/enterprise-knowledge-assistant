@@ -50,5 +50,6 @@ class SourceUsed(BaseModel):
 
 class AskResponse(BaseModel):
     question: str
+    rewritten_query: str  
     answer: str
     sources: List[SourceUsed]
